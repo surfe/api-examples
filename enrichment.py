@@ -1,77 +1,82 @@
-import requests
-import pandas as pd
-import time
-from dotenv import load_dotenv
 import os
+import time
+import pandas as pd
+import requests
+from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Get API key from environment variable
-api_key = os.environ['SURFE_API_KEY']
-
-# Read contacts from CSV
+# Load contacts from CSV
 contacts_df = pd.read_csv('contacts.csv')
 
-# Prepare data for enrichment
-contacts = []
-for index, row in contacts_df.iterrows():
-    email_domain = row['Email Address'].split('@')[-1]
-    contact = {
-        'firstName': row['First Name'],
-        'lastName': row['Last Name'],
-        'companyWebsite': email_domain,
-        'externalID': str(index)  # To match responses with original data
-    }
-    contacts.append(contact)
-
-# Start bulk enrichment
-enrich_url = 'https://api.surfe.com/v1/people/enrichments/bulk'
+# Set up API authentication
+api_key = os.getenv('SURFE_API_KEY')
 headers = {
     'Authorization': f'Bearer {api_key}',
     'Content-Type': 'application/json'
 }
 
-# Create the request body with all required fields
-request_body = {
-    'enrichmentType': 'email',  
-    'listName': 'Enriched Contacts',  
-    'people': contacts
+# Extract unique company domains directly from email addresses
+unique_domains = list(set(contacts_df['Email Address'].apply(lambda x: x.split('@')[-1])))
+organizations = [{'domain': domain} for domain in unique_domains]
+
+# Enrich Companies
+company_enrich_url = 'https://api.surfe.com/v1/organizations/enrichments/bulk'
+company_request_body = {
+    'name': 'Enriched Companies',
+    'organizations': organizations
 }
 
-response = requests.post(enrich_url, headers=headers, json=request_body)
-response_data = response.json()
-
-# Add error handling and debugging
-if response.status_code != 202:
-    print(f"Error: API request failed with status code {response.status_code}")
-    print("Response:", response_data)
+company_response = requests.post(company_enrich_url, headers=headers, json=company_request_body)
+if company_response.status_code != 202:
+    print(f"Error: Company enrichment request failed with status code {company_response.status_code}")
+    print("Response:", company_response.json())
     exit(1)
 
-
-try:
-    enrichment_id = response_data['id']
-except KeyError:
-    print("Error: 'id' not found in response data")
-    print("Response data received:", response_data)
+company_enrichment_id = company_response.json().get('id')
+if not company_enrichment_id:
+    print("Error: 'id' not found in company enrichment response")
     exit(1)
 
-# Poll for enrichment results
-results_url = f'https://api.surfe.com/v1/people/enrichments/bulk/{enrichment_id}'
+# Polling for company enrichment results
+company_results_url = f'https://api.surfe.com/v1/organizations/enrichments/bulk/{company_enrichment_id}'
 while True:
-    results_response = requests.get(results_url, headers=headers)
-    results_data = results_response.json()
-    if results_data['status'] != 'IN_PROGRESS':
+    company_results_response = requests.get(company_results_url, headers=headers)
+    company_results_data = company_results_response.json()
+    if company_results_data.get('status') != 'IN_PROGRESS':
         break
-    time.sleep(5)  # Wait before polling again
+    time.sleep(5)
 
-# Process enriched data
-enriched_contacts = results_data.get('people', [])
-print(enriched_contacts)
-for enriched in enriched_contacts:
-    external_id = int(enriched['externalID'])
-    contacts_df.at[external_id, 'Company Name'] = enriched.get('companyName', 'N/A')
-    contacts_df.at[external_id, 'Company Domain'] = enriched.get('companyWebsite', 'N/A')
+# Map enriched company data
+enriched_companies = {}
+for org in company_results_data.get('organizations', []):
+    domain = org.get('website')
+    if domain:
+        industries = org.get('industries', [])
+        industry = industries[0].get('industry') if industries else 'N/A'
+        enriched_companies[domain] = {
+            'company_name': org.get('name'),
+            'company_industry': industry,
+            'company_revenue': org.get('annualRevenueRange')
+        }
 
-# Save enriched data to a new CSV
-contacts_df.to_csv('enriched_contacts.csv', index=False)
+# Combine enriched data with original contacts
+enriched_contacts = []
+for index, row in contacts_df.iterrows():
+    email_domain = row['Email Address'].split('@')[-1]
+    company_info = enriched_companies.get(email_domain, {})
+    enriched_contact = {
+        'First Name': row['First Name'],
+        'Last Name': row['Last Name'],
+        'Email Address': row['Email Address'],
+        'Job Title': row.get('Job Title', 'N/A'),  # Made Job Title optional
+        'Company Name': company_info.get('company_name', 'N/A'),
+        'Company Industry': company_info.get('company_industry', 'N/A'),
+        'Company Revenue': company_info.get('company_revenue', 'N/A')
+    }
+    enriched_contacts.append(enriched_contact)
+
+# Save enriched contacts to a new CSV file
+enriched_contacts_df = pd.DataFrame(enriched_contacts)
+enriched_contacts_df.to_csv('enriched_contacts.csv', index=False)
