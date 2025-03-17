@@ -70,13 +70,14 @@ for index, row in contacts_df.iterrows():
         'First Name': row['First Name'],
         'Last Name': row['Last Name'],
         'Email Address': row['Email Address'],
-        'Job Title': row.get('Job Title', 'N/A'),  # Made Job Title optional
-        'Company Name': company_info.get('company_name', 'N/A'),
-        'Company Industry': company_info.get('company_industry', 'N/A'),
-        'Company Revenue': company_info.get('company_revenue', 'N/A')
+        'Job Title': row.get('Job Title'),
+        'Company Name': company_info.get('company_name'),
+        'Company Industry': company_info.get('company_industry'),
+        'Company Revenue': company_info.get('company_revenue')
     }
     enriched_contacts.append(enriched_contact)
 
 # Save enriched contacts to a new CSV file
 enriched_contacts_df = pd.DataFrame(enriched_contacts)
+enriched_contacts_df = enriched_contacts_df.fillna('N/A')
 enriched_contacts_df.to_csv('enriched_contacts.csv', index=False)
