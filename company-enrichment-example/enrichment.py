@@ -46,7 +46,7 @@ while True:
     company_results_data = company_results_response.json()
     if company_results_data.get('status') != 'IN_PROGRESS':
         break
-    time.sleep(5)
+    time.sleep(0.5)
 
 # Map enriched company data
 enriched_companies = {}

@@ -8,9 +8,8 @@ class IntercomService:
         self.base_url = "https://api.intercom.io"
         self.headers = {
             "Authorization": f"Bearer {INTERCOM_ACCESS_TOKEN}",
-            "Accept": "application/json",
             "Content-Type": "application/json",
-            "Intercom-Version": "2.12"
+            "Intercom-Version": "2.1"
         }
     
     def verify_webhook_signature(self, secret: str, signature: str, message: bytes) -> bool:
@@ -42,19 +41,55 @@ class IntercomService:
         """
         endpoint = f"{self.base_url}/conversations/{conversation_id}"
         
-        payload = {
-            "priority": priority
+        print(f"Updating conversation priority: {conversation_id} to {priority}")
+        query = {
+            "display_as": "plaintext"
         }
+
+        payload = {
+     
+        "priority": priority
+         }
         
         try:
+            print(f"Payload: {payload}")
             response = requests.put(
                 endpoint,
                 headers=self.headers,
-                json=payload
+                json=payload,
+                params=query
             )
+
+            data = response.json()
+            print(f"Response: {data}")
             
-            return response.json()
+            return {
+                "status": "success",
+                "conversation_id": conversation_id,
+                "priority_updated": data.get("priority")
+            }
             
         except requests.exceptions.RequestException as e:
             print(f"Error updating conversation priority: {str(e)}")
             raise Exception(f"Failed to update conversation priority: {str(e)}")
+        
+    def get_contact_details(self, contact_id: str):
+        """
+        Get contact details
+        """
+        endpoint = f"{self.base_url}/contacts/{contact_id}"
+        response = requests.get(endpoint, headers=self.headers)
+        return response.json()
+    
+    def add_conversation_tag(self, conversation_id: str, admin_id: str, tag: str):
+        """
+        Add a tag to a conversation
+        """
+     
+        endpoint = f"{self.base_url}/conversations/{conversation_id}/tags"
+        payload = {
+            "admin_id": admin_id,
+            "id": tag
+        }
+        response = requests.post(endpoint, headers=self.headers, json=payload)
+        return response.json()
