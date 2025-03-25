@@ -3,6 +3,8 @@ import hmac
 import hashlib
 from app.config import INTERCOM_ACCESS_TOKEN
 
+
+
 class IntercomService:
     def __init__(self):
         self.base_url = "https://api.intercom.io"
@@ -11,6 +13,7 @@ class IntercomService:
             "Content-Type": "application/json",
             "Intercom-Version": "2.1"
         }
+        self.c_level_tag_id = "10853140"
     
     def verify_webhook_signature(self, secret: str, signature: str, message: bytes) -> bool:
         """
@@ -31,48 +34,7 @@ class IntercomService:
         ).hexdigest()
         
         return hmac.compare_digest(f"sha1={expected_signature}", signature)
-    
-    def update_conversation_priority(self, conversation_id: str, priority: str = "priority"):
-        """
-        Update conversation priority
-        Args:
-            conversation_id: The ID of the conversation to update
-            priority: Either "priority" or "not_priority"
-        """
-        endpoint = f"{self.base_url}/conversations/{conversation_id}"
-        
-        print(f"Updating conversation priority: {conversation_id} to {priority}")
-        query = {
-            "display_as": "plaintext"
-        }
-
-        payload = {
-     
-        "priority": priority
-         }
-        
-        try:
-            print(f"Payload: {payload}")
-            response = requests.put(
-                endpoint,
-                headers=self.headers,
-                json=payload,
-                params=query
-            )
-
-            data = response.json()
-            print(f"Response: {data}")
             
-            return {
-                "status": "success",
-                "conversation_id": conversation_id,
-                "priority_updated": data.get("priority")
-            }
-            
-        except requests.exceptions.RequestException as e:
-            print(f"Error updating conversation priority: {str(e)}")
-            raise Exception(f"Failed to update conversation priority: {str(e)}")
-        
     def get_contact_details(self, contact_id: str):
         """
         Get contact details
@@ -81,15 +43,20 @@ class IntercomService:
         response = requests.get(endpoint, headers=self.headers)
         return response.json()
     
-    def add_conversation_tag(self, conversation_id: str, admin_id: str, tag: str):
+    def add_conversation_tag(self, conversation_id: str, admin_id: str):
         """
         Add a tag to a conversation
         """
-     
-        endpoint = f"{self.base_url}/conversations/{conversation_id}/tags"
-        payload = {
-            "admin_id": admin_id,
-            "id": tag
-        }
-        response = requests.post(endpoint, headers=self.headers, json=payload)
-        return response.json()
+        try:
+            endpoint = f"{self.base_url}/conversations/{conversation_id}/tags"
+            payload = {
+                "id": self.c_level_tag_id,
+                "admin_id": admin_id
+            }
+            response = requests.post(endpoint, json=payload, headers=self.headers)
+            if response.json().get("id") != self.c_level_tag_id:
+                raise Exception("Failed to add conversation tag")
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"Error adding conversation tag: {str(e)}")
+            raise Exception(f"Failed to add conversation tag: {str(e)}")
