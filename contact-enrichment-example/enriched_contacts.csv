@@ -1,0 +1,5 @@
+First Name,Last Name,Company Name,Company Domain,Email Address,Mobile Phone Number,Job Title,LinkedIn Profile URL,Update Status
+John,Doe,Acme Inc,acme.com,,,,https://linkedin.com/in/johndoe,No changes
+Jane,Smith,TechCorp,techcorp.cl,,,,,Filled: Company Domain
+Alex,Johnson,Laurex Realty Advisors | Commercial Real Estate | CCIM,laurexadvisors.com,alex@laurexadvisors.com,+19727403202,Commercial Real Estate Advisor & CEO,https://linkedin.com/in/alexjohnson,"Filled: Company Name, Company Domain, Job Title, Email Address, Mobile Phone Number"
+Michael,Williams,Global Solutions,globalsolutions.com,michael.williams@pwc.com,+13108617572,Salesforce Managed Services Associate,https://linkedin.com/in/michaelwilliams,"Updated: LinkedIn Profile URL; Filled: Job Title, Email Address, Mobile Phone Number"
