@@ -39,6 +39,6 @@ surfe-apis/
    pip install -r requirements.txt
    ```
 5. Set up your environment variables in a `.env` file following the `.env.example` file
-6. Follow the project's README on how to run
+6. Follow the example's README on how to run
 
 
