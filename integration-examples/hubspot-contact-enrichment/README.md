@@ -27,14 +27,6 @@ HUBSPOT_ACCESS_TOKEN=your_hubspot_access_token_here
 SURFE_API_KEY=your_surfe_api_key_here
 ```
 
-To get your HubSpot access token:
-1. Go to your HubSpot account settings
-2. Navigate to Integrations > Private Apps
-3. Create a new private app with contacts read/write permissions
-4. Copy the access token
-
-For the Surfe API key, get it from your Surfe account dashboard.
-
 ## Usage
 
 Simply run the script:

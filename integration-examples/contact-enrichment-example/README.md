@@ -18,7 +18,7 @@ The input CSV should have the following columns:
 - Job Title
 - LinkedIn Profile URL
 
-Not all fields need to be populated for each contact. The enrichment process will attempt to fill in missing information and correct any outdated information.
+Not all fields need to be populated for each contact. The enrichment process will attempt to fill in missing information and correct any outdated information. However you need to provide either a linkedinUrl or a combination of "firstName lastName companyName" or combination of "firstName lastName companyWebsite"
 
 ## Usage
 

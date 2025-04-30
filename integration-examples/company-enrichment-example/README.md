@@ -9,13 +9,12 @@ This Python script enriches contact information by fetching additional company d
 
 ## Installation
 
-1. Clone this repository
-2. Create a virtual environment (recommended):
+1. Create a virtual environment (recommended):
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows use: venv\Scripts\activate
    ```
-3. Install required packages:
+2. Install required packages:
    ```bash
    pip install pandas requests python-dotenv
    ```
