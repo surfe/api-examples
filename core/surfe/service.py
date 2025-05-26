@@ -3,14 +3,15 @@ Surfe API Core Service
 """
 import time
 import requests
+import json
 
 
 class SurfeService:
     """Service for interacting with the Surfe API"""
     
-    def __init__(self, api_key):
+    def __init__(self, api_key, version="v1"):
         self.api_key = api_key
-        self.base_url = "https://api.surfe.com/v1"
+        self.base_url = f"https://api.surfe.com/{version}"
         self.headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
@@ -30,12 +31,23 @@ class SurfeService:
         """
         if not list_name:
             list_name = f"Enrichment {time.strftime('%Y-%m-%d %H:%M:%S')}"
+        
+        if self.version == "v2":
             
-        return {
-            "enrichmentType": enrichment_type,
-            "listName": list_name,
+            return {
+                "include": {
+                "email": True,
+                "mobile": True
+            },
             "people": people_data
         }
+        else:
+            return {
+                "enrichmentType": enrichment_type,
+                "listName": list_name,
+                "people": people_data
+            }
+       
     
     def start_enrichment(self, payload):
         """
@@ -47,11 +59,16 @@ class SurfeService:
         Returns:
             Enrichment ID
         """
-        url = f"{self.base_url}/people/enrichments/bulk"
+        if self.version == "v2":
+            url = f"{self.base_url}/people/enrich"
+        else:
+            url = f"{self.base_url}/people/enrichments/bulk"
+
         
         response = requests.post(url, headers=self.headers, json=payload)
         response.raise_for_status()
-        return response.json()["id"]
+        data = response.json()
+        return data["id"]
     
     def poll_enrichment_status(self, enrichment_id, max_attempts=60, delay=5):
         """
@@ -65,7 +82,11 @@ class SurfeService:
         Returns:
             Enrichment results
         """
-        url = f"{self.base_url}/people/enrichments/bulk/{enrichment_id}"
+        if self.version == "v2":
+            url = f"{self.base_url}/people/enrich/{enrichment_id}"
+        else:
+            url = f"{self.base_url}/people/enrichments/bulk/{enrichment_id}"
+            
         
         attempts = 0
         while attempts < max_attempts:

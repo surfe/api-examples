@@ -1,0 +1,4 @@
+python-dotenv>=1.0.0
+-r ../../core/surfe/requirements.txt
+-r ../../core/integrations/zoom/requirements.txt
+-r ../../core/integrations/outreach/requirements.txt 
