@@ -48,7 +48,6 @@ class PipedriveService:
             data=payload
         )
 
-        
         response.raise_for_status()
         return response.json()
     
@@ -88,6 +87,57 @@ class PipedriveService:
         
         return response.get("data", [])
     
+    def find_person_by_email(self, email):
+        """
+        Find a person by email address
+        
+        Args:
+            email: Email address to search for
+            
+        Returns:
+            Person data if found, None otherwise
+        """
+        if not email:
+            return None
+            
+        params = {
+            "term": email,
+            "fields": "email",
+            "exact_match": True,
+            "limit": 1
+        }
+        
+        response = self._make_request("GET", "persons/search", params=params)
+        
+        if response.get("success") and response.get("data"):
+            items = response["data"].get("items", [])
+            if items:
+                return items[0]["item"]
+        
+        return None
+    
+    def create_person(self, person_data):
+        """
+        Create a new person in Pipedrive
+        
+        Args:
+            person_data: Person data to create
+            
+        Returns:
+            Created person data
+        """
+        response = self._make_request("POST", "persons", json_data=person_data)
+        
+        if not response.get("success"):
+            error_details = {
+                "error": response.get('error'),
+                "error_info": response.get('error_info', {}),
+                "status_code": getattr(response, 'status_code', 'unknown'),
+                "response": response
+            }
+            raise Exception(f"Failed to create person: {json.dumps(error_details, indent=2)}")        
+        return response.get("data", {})
+    
     def get_organization_by_id(self, org_id):
         """
         Get an organization by ID from Pipedrive
@@ -101,6 +151,28 @@ class PipedriveService:
         response = self._make_request("GET", f"organizations/{org_id}")
         
         return response.get("data", {})
+    
+    def search_organization(self, organization_data):
+        """
+        Search for an organization in Pipedrive
+        """
+        response = self._make_request("GET", "organizations/search", params=organization_data)
+        return response.get("data", {})
+    
+    def create_organization(self, organization_data):
+        """
+        Create a new organization in Pipedrive
+        
+        Args:
+            organization_data: Organization data to create
+        Returns:
+            data of the organization
+        """
+        response = self._make_request("POST", "organizations", json_data=organization_data)
+        if not response.get("success"):
+            raise Exception(f"Failed to create organization: {response.get('error')}")
+        return response.get("data", {})
+    
     
     
     def update_person(self, person_id, update_data):
@@ -118,6 +190,40 @@ class PipedriveService:
         
         if not response.get("success"):
             raise Exception(f"Failed to update person {person_id}: {response.get('error')}")
+        
+        return response.get("data", {})
+    
+    def create_deal(self, deal_data):
+        """
+        Create a new deal in Pipedrive
+        
+        Args:
+            deal_data: Deal data to create
+            
+        Returns:
+            Created deal data
+        """
+        response = self._make_request("POST", "deals", json_data=deal_data)
+        
+        if not response.get("success"):
+            raise Exception(f"Failed to create deal: {response.get('error')}")
+        
+        return response.get("data", {})
+    
+    def create_activity(self, activity_data):
+        """
+        Create a new activity in Pipedrive
+        
+        Args:
+            activity_data: Activity data to create
+            
+        Returns:
+            Created activity data
+        """
+        response = self._make_request("POST", "activities", json_data=activity_data)
+        
+        if not response.get("success"):
+            raise Exception(f"Failed to create activity: {response.get('error')}")
         
         return response.get("data", {})
     
@@ -162,6 +268,53 @@ class PipedriveService:
                 people.append(person_data)
         
         return people
+    
+    def format_enriched_data_for_pipedrive(self, enriched_person, event_name=None):
+        """
+        Format enriched data from Surfe for Pipedrive person creation
+        
+        Args:
+            enriched_person: Enriched person data from Surfe
+            event_name: Name of the event/webinar (optional)
+            
+        Returns:
+            Formatted data for Pipedrive person creation
+        """
+        existing_org = self.search_organization({
+            "term": enriched_person.get("companyName", ""),
+            "fields": "name",
+            "exact_match": True,
+            "limit": 1
+        })
+        if existing_org:
+            org = existing_org
+        else:
+            org = self.create_organization({
+                "name": enriched_person.get("companyName", "")
+            })
+        person_data = {
+            "name": f"{enriched_person.get('firstName', '')} {enriched_person.get('lastName', '')}".strip(),
+            # "first_name": enriched_person.get("firstName", ""),
+            # "last_name": enriched_person.get("lastName", ""),
+            # "job_title": enriched_person.get("jobTitle", ""),
+            "org_id": org.get("id"),
+        }
+        person_data["emails"] = [
+            {
+                "value": email_obj["email"],
+                "primary": index == 0
+            }
+            for index, email_obj in enumerate(enriched_person.get("emails", []))
+        ]
+        person_data["phones"] = [
+            {
+                "value": phone_obj["mobilePhone"],
+                "primary": index == 0
+            }
+            for index, phone_obj in enumerate(enriched_person.get("mobilePhones", []))
+        ]
+        
+        return person_data
     
     def prepare_person_update_from_surfe(self, person_id, enriched_data):
         """

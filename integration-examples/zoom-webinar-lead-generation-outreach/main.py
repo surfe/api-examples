@@ -62,7 +62,6 @@ def main():
         print("Preparing Surfe enrichment...")
         surfe_payload = surfe_service.prepare_people_payload(
             processed_registrants,
-            list_name=f"Zoom Webinar {webinar_id} Enrichment {time.strftime('%Y-%m-%d %H:%M:%S')}"
         )
         
         print("Starting Surfe enrichment process...")
