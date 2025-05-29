@@ -26,8 +26,15 @@ surfe-apis/
 ### Company Enrichment
 - [Company Enrichment](integration-examples/company-enrichment-example/) - Enrich company information from CSV files
 
+### Company Lookalikes & Prospecting
+- [Pipedrive Lookalike Companies](integration-examples/pipedrive-lookalike-companies/) - Find companies similar to recent closed deals for targeted prospecting
+
 ### CRM Integrations
 - [Intercom Priority](integration-examples/intercom-clevel-priority-example/) - Intercom priority level management
+
+### Webinar & Event Integrations
+- [Zoom Webinar Pipedrive Deals](integration-examples/zoom-webinar-pipedrive-deals/) - Create deals in Pipedrive from Zoom webinar attendees
+- [Zoom Webinar Lead Generation](integration-examples/zoom-webinar-lead-generation-outreach/) - Generate leads and outreach campaigns from Zoom webinar data
 
 ## Getting Started
 

@@ -1,6 +1,7 @@
 """
 Pipedrive API Service Module
 """
+from datetime import timezone
 import requests
 import json
 
@@ -38,8 +39,6 @@ class PipedriveService:
             "Accept": "application/json",
             "Content-Type": "application/json",
         }
-
-        
         response = requests.request(
             method=method,
             url=url,
@@ -47,7 +46,7 @@ class PipedriveService:
             headers=headers,
             data=payload
         )
-
+        
         response.raise_for_status()
         return response.json()
     
@@ -209,6 +208,154 @@ class PipedriveService:
             raise Exception(f"Failed to create deal: {response.get('error')}")
         
         return response.get("data", {})
+    
+    def get_deals(self, limit=100, status=None, sort_by=None, sort_direction='asc', owner_id=None, stage_id=None, filter_id=None):
+        """
+        Get deals from Pipedrive
+        
+        Args:
+            limit: Maximum number of deals to fetch
+            status: Status filter (all_not_deleted, open, won, lost, deleted, all)
+            start: Pagination start
+            sort: Sort order
+            owner_id: Filter by owner ID
+            stage_id: Filter by stage ID
+            filter_id: Filter ID to apply
+            
+        Returns:
+            List of deals
+        """
+        params = {
+            "limit": limit,
+            "status": status,
+        }
+        
+        # Add optional parameters if provided
+        if sort_by:
+            params["sort_by"] = sort_by
+        if sort_direction:
+            params["sort_direction"] = sort_direction
+        if owner_id:
+            params["owner_id"] = int(owner_id)
+        if stage_id:
+            params["stage_id"] = int(stage_id)
+        if filter_id:
+            params["filter_id"] = filter_id
+        
+        response = self._make_request("GET", "deals", params=params)
+        
+        if not response.get("success"):
+            raise Exception(f"Failed to get deals: {response.get('error')}")
+        
+        return response.get("data", [])
+
+    def get_recently_closed_deals(self, days_back=30, limit=100):
+        """
+        Get recently closed (won) deals from Pipedrive
+        
+        Args:
+            days_back: Number of days to look back for closed deals
+            limit: Maximum number of deals to fetch
+            
+        Returns:
+            List of recently closed deals with organization data
+        """
+        from datetime import datetime, timedelta
+        
+        # Get won deals
+        deals = self.get_deals(
+            limit=limit,
+            status="won",
+            sort_by="update_time",
+            sort_direction="desc"
+        )
+        
+        # Filter by date
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
+        recent_deals = []
+        
+        for deal in deals:
+            # Check if deal was updated recently (this includes when it was won)
+            if deal.get("update_time"):
+                update_time = datetime.fromisoformat(deal["update_time"].replace("Z", "+00:00"))
+                if update_time >= cutoff_date:
+                    # Enrich deal with organization data if not already included
+                    if deal.get("org_id") and not isinstance(deal["org_id"], dict):
+                        try:
+                            org_data = self.get_organization_by_id(deal["org_id"])
+                            deal["org_id"] = org_data
+                        except:
+                            # If we can't get org data, skip this deal
+                            continue
+                    recent_deals.append(deal)
+        
+        return recent_deals
+
+
+    def create_prospects_from_lookalikes(self, lookalike_companies, pipeline_id=None, stage_id=None, owner_id=None):
+        """
+        Create prospect organizations and deals in Pipedrive from lookalike companies
+        
+        Args:
+            lookalike_companies: List of lookalike companies from Surfe
+            pipeline_id: Pipeline ID for new deals
+            stage_id: Stage ID for new deals  
+            owner_id: Owner ID for new deals
+            
+        Returns:
+            List of created prospects with deal and organization IDs
+        """
+        created_prospects = []
+        
+        for company in lookalike_companies:
+            try:
+                # Check if organization already exists
+                existing_org = None
+                if company.get("name"):
+                    existing_org = self.search_organization({
+                        "term": company["name"],
+                        "fields": "name",
+                    })                
+                if not existing_org or not existing_org.get("items"):
+                    # Create new organization
+                    org_data = {
+                        "name": company.get("name", "Unknown Company"),
+                    }
+                    created_org = self.create_organization(org_data)
+                    org_id = created_org.get("id")
+                else:
+                    org_id = existing_org["items"][0]["item"]["id"]
+                
+                # Create deal for this prospect
+                deal_data = {
+                    "title": f"Lookalike Prospect - {company.get('name', 'Unknown')}",
+                    "org_id": int(org_id),
+                    "value": 5000,  # Default prospect value
+                    "currency": "USD"
+                }
+                
+                if pipeline_id:
+                    deal_data["pipeline_id"] = int(pipeline_id)
+                if stage_id:
+                    deal_data["stage_id"] = int(stage_id)
+                if owner_id:
+                    deal_data["owner_id"] = int(owner_id)
+                
+                created_deal = self.create_deal(deal_data)
+                
+                prospect_info = {
+                    "company": company,
+                    "organization_id": org_id,
+                    "deal_id": created_deal.get("id"),
+                }
+                
+                created_prospects.append(prospect_info)
+                
+            except Exception as e:
+                print(f"Failed to create prospect for {company.get('name', 'Unknown')}: {str(e)}")
+                continue
+        
+        return created_prospects
     
     def create_activity(self, activity_data):
         """

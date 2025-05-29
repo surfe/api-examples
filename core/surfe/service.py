@@ -111,3 +111,81 @@ class SurfeService:
             attempts += 1
         
         raise Exception("Enrichment timed out")
+
+    def search_company_lookalikes(self, company_domains, limit=10):
+        """
+        Search for companies similar to the provided company domains
+        
+        Args:
+            company_domains: List of company domains to find lookalikes for
+            limit: Maximum number of results per page (1-200)
+            page_token: Token for pagination
+            
+        Returns:
+            Lookalike company search results
+        """
+        if self.version != "v1":
+            raise Exception("Company lookalikes search is only available in API v1")
+        
+        url = f"{self.base_url}/organizations/lookalikes"
+        
+        payload = {
+            "domains": company_domains,
+            "maxResults": min(max(limit, 1), 10)
+        }
+        
+        
+        response = requests.post(url, headers=self.headers, json=payload)
+        response.raise_for_status()
+        return response.json()
+
+    def extract_companies_from_deals(self, deals_data):
+        """
+        Extract unique company domains from deals data
+        
+        Args:
+            deals_data: List of deals from CRM
+            
+        Returns:
+            List of unique company domains
+        """
+        domains = set()
+        
+        for deal in deals_data:
+            # Try to extract domain from organization data
+            if deal.get("org_id") and isinstance(deal["org_id"], dict):
+                org_data = deal["org_id"]
+                
+                # Check if domain is directly available
+                if org_data.get("domain"):
+                    domains.add(org_data["domain"])
+                
+                # Extract domain from company website/URL
+                elif org_data.get("website"):
+                    website = org_data["website"]
+                    # Clean up the URL to extract domain
+                    if website.startswith(("http://", "https://")):
+                        domain = website.split("//")[1].split("/")[0]
+                    else:
+                        domain = website.split("/")[0]
+                    domains.add(domain)
+            
+            # Try to extract from person email if available
+            if deal.get("person_id") and isinstance(deal["person_id"], dict):
+                person_data = deal["person_id"]
+                emails = person_data.get("email", [])
+                
+                if isinstance(emails, list):
+                    for email_obj in emails:
+                        if isinstance(email_obj, dict) and email_obj.get("value"):
+                            email = email_obj["value"]
+                        else:
+                            email = str(email_obj)
+                        
+                        if "@" in email:
+                            domain = email.split("@")[1]
+                            # Skip common email providers
+                            if domain not in ["gmail.com", "outlook.com", "yahoo.com", "hotmail.com"]:
+                                domains.add(domain)
+        
+        return list(domains)

@@ -1,0 +1,3 @@
+python-dotenv>=1.0.0
+-r ../../core/surfe/requirements.txt
+-r ../../core/integrations/pipedrive/requirements.txt 
